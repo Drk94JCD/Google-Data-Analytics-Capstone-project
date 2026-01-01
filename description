@@ -1,0 +1,69 @@
+# Cyclistic Bike-Share Capstone Project  
+**Google Data Analytics Professional Certificate**
+Juan Carlos Diego Angulo
+
+This repository contains my completed **Capstone Project** for the Google Data Analytics Certificate on Coursera.  
+
+**Case Study**: How Does a Bike-Share Navigate Speedy Success?  
+**Company**: Cyclistic (fictional name for Chicago's Divvy bike-share)  
+**Business Task**: Understand how annual members and casual riders use Cyclistic bikes differently, to inform marketing strategies aimed at converting casual riders into annual members.  
+
+**Dataset**: Public Divvy trip data from Q1 2019 and Q1 2020 (~700,000 trips after cleaning).  
+**Tools Used**: R (tidyverse, lubridate) for data cleaning, analysis, and visualization.  
+
+## Key Improvements Over Spreadsheet Analysis
+- **Reproducible & Scalable**: Full R script automates cleaning and handles multiple quarters consistently.
+- **Better Data Quality**: Removes invalid rides (<1 min or >24 hours), adds useful variables (hour, month, day name).
+- **Deeper Insights**: Rich aggregations by day, hour, and year.
+
+## Major Findings
+1. **Ride Volume**  
+   Annual members make the majority of trips (65–80% depending on quarter), but casual riders surged in early 2020.
+
+2. **Ride Duration**  
+   Casual riders take much longer rides:  
+   - Casual: ~35–45 minutes average  
+   - Members: ~12–15 minutes  
+
+3. **Day of Week Patterns**  
+   - Members: Peak on weekdays → commuting behavior  
+   - Casual: Peak on weekends → leisure/recreation
+
+4. **Time of Day Patterns**  
+   - Members: Clear rush-hour peaks (7–9 AM & 4–6 PM)  
+   - Casual: Broad afternoon/evening peak
+
+## Conclusion
+Annual members use Cyclistic for **routine, short commutes** on weekdays.  
+Casual riders use it **occasionally for longer, leisure-oriented rides** on weekends.  
+
+These differences highlight opportunities to market membership benefits (cost savings, unlimited rides) specifically to casual riders who already take longer trips.
+
+## Top 3 Recommendations
+1. **"Weekend Rider" Campaign**  
+   Target casual users with promotions emphasizing savings on longer weekend rides.
+
+2. **"Unlimited Convenience" Messaging**  
+   Highlight break-even cost calculators for frequent or long-ride users.
+
+3. **Seasonal Trial Offers**  
+   Provide discounts or trials to casual riders during high-usage periods.
+
+## Repository Structure
+```
+├── data/                  # Raw and processed CSV files (not uploaded due to size)
+├── scripts/
+│   ├── cleaning_script.R  # Data import, cleaning, and feature engineering
+│   └── analysis_script.R  # Aggregations and visualizations
+├── visuals/               # Exported charts (if any)
+├── LICENSE                # MIT License
+└── README.md              # This file
+```
+
+Feel free to explore the code! Feedback welcome.  
+
+**License**: [MIT License](LICENSE) – You can reuse or modify this project (with attribution).  
+
+**Connect**: [https://www.linkedin.com/in/juan-carlos-diego-6067922a4/]  
+
+Thank you for visiting my portfolio project! 🚀
