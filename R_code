@@ -1,0 +1,228 @@
+•	# =====================================================
+•	# Cyclistic Bike-Share Data Cleaning Script
+•	# Datasets: Divvy_Trips_2019_Q1.csv and Divvy_Trips_2020_Q1.csv
+•	# Goal: Clean and combine data to compare casual vs. member usage
+•	# =====================================================
+•	
+•	# 1. Load required packages -------------------------------------------------
+•	library(tidyverse)   # for data manipulation (dplyr, tidyr, etc.)
+•	library(lubridate)   # for handling dates and times
+•	library(readr)       # for reading CSV files
+•	
+•	# 2. Set working directory (adjusted to my path) ---------------
+•	# setwd("C:/Users/jdiego/OneDrive - CSCU/Documents/lmms/projects/Data_Cyclistic bike-share")
+•	
+•	# 3. Import the raw datasets ------------------------------------------------
+•	tripdata_2019_q1 <- read_csv("raw_data/Divvy_Trips_2019_Q1.csv")
+•	tripdata_2020_q1 <- read_csv("raw_data/Divvy_Trips_2020_Q1.csv")
+•	
+•	# 4. Standardize column names and user types --------------------------------
+•	# 2019 Q1 columns: trip_id, start_time, end_time, bikeid, tripduration, 
+•	#                  from_station_id, from_station_name, to_station_id, 
+•	#                  to_station_name, usertype, gender, birthyear
+•	
+•	# 2020 Q1 columns: ride_id, started_at, ended_at, start_station_name, 
+•	#                  end_station_name, start_station_id, end_station_id,
+•	#                  member_casual, rideable_type
+•	
+•	# Rename and select comparable columns
+•	tripdata_2019_clean <- tripdata_2019_q1 %>%
+•	  rename(
+•	    ride_id = trip_id,
+•	    started_at = start_time,
+•	    ended_at = end_time,
+•	    start_station_name = from_station_name,
+•	    end_station_name = to_station_name,
+•	    member_casual = usertype
+•	  ) %>%
+•	  mutate(member_casual = recode(member_casual,
+•	                                "Subscriber" = "member",
+•	                                "Customer" = "casual")) %>%
+•	  select(ride_id, started_at, ended_at, start_station_name, 
+•	         end_station_name, member_casual)
+•	
+•	tripdata_2020_clean <- tripdata_2020_q1 %>%
+•	  select(ride_id, started_at, ended_at, start_station_name, 
+•	         end_station_name, member_casual)
+•	
+•	# 5. Combine the two datasets ------------------------------------------------
+•	trips_combined <- bind_rows(tripdata_2019_clean, tripdata_2020_clean)
+•	
+•	# 6. Clean and create new variables -----------------------------------------
+•	trips_clean <- trips_combined %>%
+•	  # Convert to datetime if not already
+•	  mutate(
+•	    started_at = as_datetime(started_at),
+•	    ended_at = as_datetime(ended_at)
+•	  ) %>%
+•	  # Calculate ride length in seconds
+•	  mutate(
+•	    ride_length_sec = as.numeric(difftime(ended_at, started_at, units = "secs")),
+•	    ride_length_min = ride_length_sec / 60
+•	  ) %>%
+•	  # Extract day of week (1 = Sunday, 7 = Saturday to match your Sheets format)
+•	  mutate(
+•	    day_of_week = wday(started_at, week_start = 7),  # week_start=7 makes Sunday=1
+•	    day_name = weekdays(started_at)
+•	  ) %>%
+•	  # Extract additional useful fields
+•	  mutate(
+•	    start_hour = hour(started_at),
+•	    date = as_date(started_at),
+•	    month = month(started_at, label = TRUE)
+•	  )
+•	
+•	# 7. Remove invalid rides ----------------------------------------------------
+•	trips_clean <- trips_clean %>%
+•	  filter(
+•	    ride_length_sec > 60,                 # Remove rides ≤ 1 minute (likely false starts/docking errors)
+•	    ride_length_sec < 86400,              # Remove rides ≥ 24 hours (likely lost/stolen/maintenance)
+•	    !is.na(started_at), !is.na(ended_at), # Remove missing times
+•	    !is.na(member_casual)
+•	  )
+•	
+•	# 8. Final checks ------------------------------------------------------------
+•	glimpse(trips_clean)
+•	summary(trips_clean$ride_length_min)
+•	
+•	# Check user type distribution
+•	trips_clean %>% count(member_casual)
+•	
+•	# Check for any remaining negative ride lengths
+•	trips_clean %>% filter(ride_length_sec < 0) %>% nrow()  # Should be 0
+•	
+•	# 9. Save cleaned dataset ----------------------------------------------------
+•	write_csv(trips_clean, "processed_data/cyclistic_trips_2019_2020_q1_cleaned.csv")
+
+# R Code for Analysis (Run after the cleaning script)
+# Load required packages (if not already loaded)
+library(tidyverse)
+library(lubridate)
+library(scales)
+
+# 1. Overall summary by user type
+summary_by_type <- trips_clean %>%
+  group_by(member_casual) %>%
+  summarise(
+    total_rides = n(),
+    percent_of_total = n() / nrow(trips_clean) * 100,
+    avg_ride_length_min = mean(ride_length_min, na.rm = TRUE),
+    median_ride_length_min = median(ride_length_min, na.rm = TRUE),
+    total_ride_minutes = sum(ride_length_min, na.rm = TRUE)
+  ) %>%
+  arrange(desc(total_rides))
+
+print(summary_by_type)
+
+# 2. Rides and average duration by day of week
+daily_usage <- trips_clean %>%
+  mutate(day_name = factor(day_name, levels = c("Sunday", "Saturday", "Friday", 
+                                               "Thursday", "Wednesday", "Tuesday", "Monday"))) %>%
+  group_by(member_casual, day_name) %>%
+  summarise(
+    total_rides = n(),
+    avg_ride_length_min = mean(ride_length_min, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# 3. Hourly usage pattern
+hourly_usage <- trips_clean %>%
+  group_by(member_casual, start_hour) %>%
+  summarise(total_rides = n(), .groups = "drop")
+
+# 4. Year-over-year comparison (2019 vs 2020)
+yearly_comparison <- trips_clean %>%
+  mutate(year = year(started_at)) %>%
+  group_by(year, member_casual) %>%
+  summarise(
+    total_rides = n(),
+    avg_ride_length_min = mean(ride_length_min, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+# Visualization 1
+#Load required packages (if not already loaded)
+library(ggplot2)
+library(scales)
+
+daily_rides <- trips_clean %>%
+  mutate(day_name = factor(day_name, levels = c("Monday", "Tuesday", "Wednesday", 
+                                               "Thursday", "Friday", "Saturday", "Sunday"))) %>%
+  count(member_casual, day_name) %>%
+  group_by(member_casual) %>%
+  mutate(perc = n / sum(n) * 100)
+
+ggplot(daily_rides, aes(x = day_name, y = n, fill = member_casual)) +
+  geom_col(position = "dodge", width = 0.7) +
+  scale_fill_manual(values = c("member" = "#1f78b4", "casual" = "#ff7f00"),  # High contrast blue/orange
+                    labels = c("Annual Member", "Casual Rider")) +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Members Ride Most on Weekdays, Casual Riders on Weekends",
+       subtitle = "Clear difference in usage pattern suggests commuting vs. leisure behavior",
+       x = "Day of Week", 
+       y = "Number of Rides",
+       fill = "Rider Type",
+       caption = "Data: Cyclistic Q1 2019 & Q1 2020") +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 14, color = "gray30", hjust = 0.5),
+    axis.text.x = element_text(angle = 0),
+    legend.position = "top"
+  )
+
+# Visualization 2
+
+r
+hourly_rides <- trips_clean %>%
+  count(member_casual, start_hour) %>%
+  group_by(member_casual) %>%
+  mutate(perc = n / sum(n) * 100)
+
+ggplot(hourly_rides, aes(x = start_hour, y = n, color = member_casual, group = member_casual)) +
+  geom_line(size = 2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("member" = "#1f78b4", "casual" = "#ff7f00"),
+                     labels = c("Annual Member", "Casual Rider")) +
+  scale_x_continuous(breaks = seq(0, 23, 2)) +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Members Show Clear Rush Hour Peaks, Casual Riders Ride in Afternoon/Evening",
+       subtitle = "Members: 8 AM and 5 PM peaks | Casual: Broad peak 12–6 PM",
+       x = "Hour of Day", 
+       y = "Number of Rides",
+       color = "Rider Type",
+       caption = "Data: Cyclistic Q1 2019 & Q1 2020") +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 14, color = "gray30", hjust = 0.5),
+    legend.position = "top"
+  
+# Visualization 3
+r
+daily_duration <- trips_clean %>%
+  mutate(day_name = factor(day_name, levels = c("Monday", "Tuesday", "Wednesday", 
+                                               "Thursday", "Friday", "Saturday", "Sunday"))) %>%
+  group_by(member_casual, day_name) %>%
+  summarise(avg_min = mean(ride_length_min, na.rm = TRUE), .groups = "drop")
+
+ggplot(daily_duration, aes(x = day_name, y = avg_min, fill = member_casual)) +
+  geom_col(position = "dodge", width = 0.7) +
+  scale_fill_manual(values = c("member" = "#1f78b4", "casual" = "#ff7f00"),
+                    labels = c("Annual Member", "Casual Rider")) +
+  labs(title = "Casual Riders Take Significantly Longer Rides Than Members",
+       subtitle = "Especially on weekends — average casual weekend ride is 2–3x longer",
+       x = "Day of Week", 
+       y = "Average Ride Duration (minutes)",
+       fill = "Rider Type",
+       caption = "Data: Cyclistic Q1 2019 & Q1 2020") +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 14, color = "gray30", hjust = 0.5),
+    legend.position = "top"
+  )
+
+
+
